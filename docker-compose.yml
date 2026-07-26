@@ -1,10 +1,9 @@
-# docker-compose.yml
 services:
   papermc:
     image: itzg/minecraft-server:latest
     container_name: papermc
     ports:
-      - "25565:25565"
+      - "127.0.0.1:25565:25565"   # localhostのみ公開
     environment:
       EULA: "true"
       TYPE: "PAPER"
@@ -12,6 +11,7 @@ services:
       MEMORY: "10G"
       USE_AIKAR_FLAGS: "true"
       TZ: "Asia/Tokyo"
+      ONLINE_MODE: "true"
       WHITELIST: ""                # 例: "user1,user2"
       ENFORCE_WHITELIST: "true"
       MAX_PLAYERS: "10"
@@ -23,6 +23,14 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    stop_grace_period: 1m
 
   playit:
     image: ghcr.io/playit-cloud/playit-agent:0.17
@@ -31,3 +39,10 @@ services:
     environment:
       SECRET_KEY: ${PLAYIT_SECRET_KEY}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
