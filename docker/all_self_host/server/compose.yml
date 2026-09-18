@@ -1,0 +1,209 @@
+services:
+  # 外部からの接続経路: プレイヤー → playit.gg → host:25565 → mc-router → papermc:25565
+  mc-router:
+    image: itzg/mc-router:latest
+    container_name: mc-router
+    # playit 経由のみなら 127.0.0.1 のままでよい（playit は network_mode: host なので届く）。
+    # LAN から直接繋ぎたい場合だけ .env の MC_BIND_IP を 0.0.0.0 やLANアドレスに変える。
+    ports:
+      - "${MC_BIND_IP:-127.0.0.1}:25565:25565"
+    environment:
+      CONNECTION_RATE_LIMIT: "5"
+      METRICS_BACKEND: "prometheus"
+      API_BINDING: "0.0.0.0:8081"
+      # Docker API で mc-router.* ラベルの付いたコンテナを自動検出する。
+      # 経路は MAPPING/DEFAULT ではなく papermc 側のラベルで決まる。
+      IN_DOCKER: "true"
+      # プレイヤーが接続したら papermc を起動し、誰もいなくなったら停止する（scale to zero）。
+      # 停止は Docker の stop API 経由なので papermc の stop_grace_period が尊重される。
+      # 常時起動に戻したい場合は .env で AUTO_SCALE=false にする。
+      AUTO_SCALE_UP: ${AUTO_SCALE:-true}
+      AUTO_SCALE_DOWN: ${AUTO_SCALE:-true}
+      AUTO_SCALE_DOWN_AFTER: ${AUTO_SCALE_DOWN_AFTER:-30m}
+    volumes:
+      # コンテナの起動・停止に Docker API を使うため必要
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - papermc
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    mem_limit: 64m
+
+  playit:
+    image: ghcr.io/playit-cloud/playit-agent:0.17
+    container_name: playit
+    # playit.gg の管理画面でトンネルの転送先を 127.0.0.1:25565 に設定する
+    network_mode: host
+    environment:
+      SECRET_KEY: ${PLAYIT_SECRET_KEY:?.env に playit.gg のシークレットキーを設定してください}
+    depends_on:
+      - mc-router
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  papermc:
+    image: itzg/minecraft-server:latest
+    container_name: papermc
+    environment:
+      EULA: "true"
+      TYPE: "PAPER"                # 省略すると VANILLA になる
+      VERSION: "26.2"              # 省略すると LATEST になり、勝手にメジャー更新されうる
+      MEMORY: "10G"                # 16GBモデル前提。OS/Docker/監視スタック用に残す
+      USE_AIKAR_FLAGS: "true"
+      TZ: "Asia/Tokyo"
+      ONLINE_MODE: "true"
+      WHITELIST: ""                # 例: "user1,user2"
+      ENFORCE_WHITELIST: "true"
+      MAX_PLAYERS: "10"
+      VIEW_DISTANCE: "8"
+      SIMULATION_DISTANCE: "6"
+      # SEED: ""                   # 初回生成時のみ有効。既存worldがあれば無視される
+      # backup コンテナから rcon で save-off/save-all を打つために固定する。
+      # 未設定だとitzgイメージが起動ごとにランダム生成し、backup 側と一致しなくなる。
+      RCON_PASSWORD: ${RCON_PASSWORD:?.env に RCON_PASSWORD を設定してください}
+      #
+      # AUTOPAUSE は使わない。mc-monitor の status ping でアイドル判定がリセットされ続けて
+      # 発火しないうえ、発火しても JVM を SIGSTOP するだけでメモリは掴んだままになる。
+      # 代わりに mc-router の AUTO_SCALE_UP/DOWN でコンテナごと停止させている。
+      ENABLE_AUTOPAUSE: "false"
+    # mc-router はこのラベルでバックエンドを検出する。
+    # ラベルが無いと経路が1つも登録されず、誰も接続できなくなる。
+    labels:
+      mc-router.default: "true"    # 任意のホスト名（playit のアドレス含む）をここに向ける
+      mc-router.host: "papermc"
+      mc-router.port: "25565"
+    volumes:
+      - ${MC_DATA_DIR:-../../../data}:/data
+    # mc-router が停止させた場合は明示停止扱いになるので unless-stopped でも復帰しない（意図通り）
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # 既定の 10 秒では終了しきれずSIGKILLされ、ワールド破損のリスクがある
+    stop_grace_period: 1m
+    # portsは公開不要(mc-router経由でアクセスするため)
+
+  # 常駐させず、必要なときだけ1回走らせて終了するバックアップジョブ。
+  #   実行: docker compose run --rm backup
+  # profiles を付けてあるので `docker compose up -d` では起動しない。
+  # papermc に rcon で繋ぐ必要があるので、papermc と同じ compose プロジェクトに置くこと。
+  backup:
+    image: itzg/mc-backup:latest
+    profiles: ["backup"]
+    depends_on:
+      - papermc
+    environment:
+      TZ: "Asia/Tokyo"
+      BACKUP_INTERVAL: "0"          # 0 で「1回だけ実行して終了」
+      INITIAL_DELAY: "0"
+      BACKUP_METHOD: rclone         # ローカルにtarを作ってから R2 へ転送する
+      PRUNE_BACKUPS_DAYS: ${RETENTION_DAYS:-7}
+      # save-off → save-all → バックアップ → save-on を自動で行うための接続先
+      RCON_HOST: papermc
+      RCON_PASSWORD: ${RCON_PASSWORD:?.env に RCON_PASSWORD を設定してください}
+      # rclone.conf を置く代わりに、環境変数で remote "r2" を定義する
+      # (RCLONE_CONFIG_<リモート名の大文字>_<キー> 形式)
+      RCLONE_REMOTE: r2
+      RCLONE_DEST_DIR: ${R2_BUCKET:?.env に R2_BUCKET を設定してください}/${R2_PREFIX:-world}
+      RCLONE_COMPRESS_METHOD: gzip
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_REGION: auto
+      RCLONE_CONFIG_R2_ACL: private
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      RCLONE_CONFIG_R2_ENDPOINT: ${R2_ENDPOINT:?.env に R2_ENDPOINT を設定してください}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?.env に R2_ACCESS_KEY_ID を設定してください}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?.env に R2_SECRET_ACCESS_KEY を設定してください}
+    volumes:
+      - ${MC_DATA_DIR:-../../../data}:/data:ro
+      - ${BACKUP_DIR:-../../../backups}:/backups
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+  monitor:
+    image: itzg/mc-monitor
+    command: export-for-prometheus
+    environment:
+      EXPORT_SERVERS: papermc
+    depends_on:
+      - papermc
+    restart: unless-stopped
+    mem_limit: 64m
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - "--path.rootfs=/host"
+      - "--collector.hwmon"
+      - "--collector.thermal_zone"
+    volumes:
+      - /:/host:ro,rslave
+    pid: host
+    network_mode: host
+    restart: unless-stopped
+    mem_limit: 64m
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus.yml:ro
+      - vm-data:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--retentionPeriod=1"
+      - "--promscrape.config=/etc/prometheus.yml"
+    # network_mode: host の node-exporter を scrape するために必要
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # 別PCのGrafanaから参照する。認証が無いので LAN_BIND_IP でアドレスを絞る
+    ports:
+      - "${LAN_BIND_IP:-127.0.0.1}:8428:8428"
+    restart: unless-stopped
+    mem_limit: 256m
+
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+    ports:
+      - "${LAN_BIND_IP:-127.0.0.1}:3100:3100"
+    restart: unless-stopped
+    mem_limit: 256m
+
+  promtail:
+    image: grafana/promtail:latest
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - promtail-positions:/var/lib/promtail
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+    mem_limit: 128m
+
+volumes:
+  vm-data:
+  loki-data:
+  promtail-positions:

@@ -1,17 +1,150 @@
 {
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "stack",
+      "type": "pickString",
+      "description": "どの compose を対象にするか",
+      "default": "docker/all_self_host/server",
+      "options": [
+        {
+          "label": "監視A / Pi 側 — 全セルフホスト",
+          "value": "docker/all_self_host/server"
+        },
+        {
+          "label": "監視A / 別PC側 — Grafana",
+          "value": "docker/all_self_host/client"
+        },
+        {
+          "label": "監視B / Pi 側 — Grafana Cloud",
+          "value": "docker/cloud"
+        }
+      ]
+    }
+  ],
   "tasks": [
     {
-      "label": "docker compose up",
+      "label": "compose: 構文チェック (config)",
       "type": "shell",
-      "command": "docker compose up -d",
+      "command": "docker compose config",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
       "problemMatcher": [],
       "group": "none"
     },
     {
-      "label": "docker compose down",
+      "label": "compose: 起動 (up -d)",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: 停止 (stop)",
+      "type": "shell",
+      "command": "docker compose stop",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: 再起動 (restart)",
+      "type": "shell",
+      "command": "docker compose restart",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: イメージ更新して再作成 (pull + up -d)",
+      "type": "shell",
+      "command": "docker compose pull && docker compose up -d",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: コンテナ破棄 (down) ※通常は stop を使う",
       "type": "shell",
       "command": "docker compose down",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "logs: papermc",
+      "type": "shell",
+      "command": "docker compose logs -f papermc --tail 100",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "logs: playit",
+      "type": "shell",
+      "command": "docker compose logs -f playit --tail 100",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "backup: 今すぐ1回実行 (R2へ送信)",
+      "type": "shell",
+      "command": "docker compose run --rm backup",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "rcon: プレイヤー一覧 (list)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli list",
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "rcon: TPS確認 (tps)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli tps",
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "rcon: 手動セーブ (save-all)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli save-all",
       "problemMatcher": [],
       "group": "none"
     }
