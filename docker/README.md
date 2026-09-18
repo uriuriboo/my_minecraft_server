@@ -85,6 +85,12 @@ playit を残しているのでフレンド側に追加インストールは不�
 レート制限、そして後述の scale to zero を担当する。mc-router の待ち受けは既定で `127.0.0.1` なので、
 ルーターのポート開放は不要。LAN 内から直接繋ぎたいときだけ `.env` の `MC_BIND_IP` を変更する。
 
+`MC_BIND_IP` を特定のLANアドレス（例: `192.168.1.50`）に変更する場合は要注意。playit は
+`network_mode: host` でPi自身の`127.0.0.1`経由でmc-routerに繋ぐため、`MC_BIND_IP`を`127.0.0.1`
+以外の**特定の**アドレスにすると、そのアドレスでしか待ち受けなくなりplayit経由の接続が切れる。
+LANからも直接繋ぎつつplayitも生かしたい場合は、特定アドレスではなく`0.0.0.0`（全インターフェース）
+を指定すること。
+
 なお playit → mc-router → papermc と2段挟むため、papermc から見た接続元IPは全プレイヤー同一になる。
 IP 単位の BAN や Paper の `connection-throttle` は効かないので、アクセス制御は
 `ENFORCE_WHITELIST` で行う。

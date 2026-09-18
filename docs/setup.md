@@ -72,9 +72,14 @@ docker compose logs -f playit    # "Connected" 表示を確認
 
 1. ダッシュボードの **Tunnels** ページで「Add Tunnel」
 2. Tunnel Type: `Minecraft Java`
-3. Local IP: `127.0.0.1`（繋がらない場合は `172.17.0.1`）
+3. Local IP: `127.0.0.1`
 4. Local Port: `25565`
 5. 発行されたアドレス（例: `xx-xx.craft.playit.gg`）を確認
+
+playit コンテナは `network_mode: host` で動いているため、Pi自身の`127.0.0.1`がそのままmc-routerに届く。
+`.env`の`MC_BIND_IP`を`0.0.0.0`以外の特定のLANアドレスに変更した場合は、mc-routerが
+`127.0.0.1`では待ち受けなくなり、この設定のままではplayit経由の接続が繋がらなくなる点に注意
+（詳細は [docker/README.md](../docker/README.md)）。
 
 注: このアドレスは基本固定（ランダムだが変わらない）。トンネルやエージェントを作り直さない限り維持される。
 

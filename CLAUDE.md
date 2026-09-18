@@ -79,18 +79,19 @@ mc-router の `AUTO_SCALE_UP` / `AUTO_SCALE_DOWN` が**既定で有効**。プ�
 ## 重要な運用上の制約（ドキュメントに明記されている禁止事項・注意点）
 
 - **`docker kill` や電源off直接切断は禁止** — ワールド破損リスクがあるため、必ず `docker compose stop`（SIGTERM経由）を使う。同じ理由で compose には `stop_grace_period: 1m` が要る（Docker 既定の10秒では保存が間に合わない）。
-- **プラグイン更新はサーバー停止中のみ** — 稼働中の `data/plugins` 書き換えはクラスロード不整合でクラッシュの可能性がある。
+- **プラグイン更新はサーバー停止中のみ** — 稼働中の `$MC_DATA_DIR/plugins` 書き換えはクラスロード不整合でクラッシュの可能性がある。
 - **メジャーバージョンアップ（例: 1.21→1.22）前は必ずバックアップ** — ワールドの互換性は前方のみ（新→旧には戻せない）。`VERSION` を省略すると `LATEST` 扱いになり意図せず上がるので固定する。
 - **SEEDは初回ワールド生成時のみ有効** — 既存の `world` がある状態でSEEDを変えても無視される。ワールドの継続性は「正常停止」「データディレクトリの保全」「定期バックアップ」の3点で守られる。ワールドを名前付きボリュームに移すような変更は既存ワールドを切り離すことになるので提案しない。
 - **ワールドの実体は `.env` の `MC_DATA_DIR`** — papermc と backup の両方がここを見る。未設定ならリポジトリルートの `data/`。リポジトリ外・できれば SSD への移設を推奨している（理由と手順は [docs/operations.md](docs/operations.md) の「ワールドデータの配置場所」）。
 - **RCONは平文プロトコルのため外部公開しない** — Discord Bot等から操作したい場合はVPN（WireGuard等）やCloudflare Tunnel経由のプライベートアクセスを前提に構成する。
 - **監視スタックの VictoriaMetrics(8428) / Loki(3100) も認証が無い** — LAN か VPN の内側だけに bind する（`LAN_BIND_IP`）。インターネットに露出させない。
+- **`MC_BIND_IP` を特定のLANアドレスにすると playit が繋がらなくなる** — playit は `network_mode: host` で Pi の `127.0.0.1` 経由で mc-router に接続するため、`MC_BIND_IP` を `127.0.0.1` 以外の特定アドレスにすると待ち受けがそのアドレスだけになり、playit経由の接続が切れる。LANからも直接繋ぎたい場合は特定アドレスではなく `0.0.0.0` を指定する。
 - 外部公開手段としてplayit.ggを採用している理由は「フレンド側の追加インストールが不要」なため（Cloudflare Tunnelは接続先にもcloudflaredが必要になり不採用）。mc-router を挟む構成でも playit は外さない。
 - **`MEMORY` は 10G** — 16GBモデルで OS / Docker / playit / 監視スタックに残す分。増やす提案をしない。
 
 ## 既知の不整合（触るときに注意）
 
-- **ワールドは `data/world` の1ディレクトリで完結する** — Paper 26.2 では3ディメンションが `data/world/dimensions/minecraft/` 配下に統合されており、旧レイアウトの `data/world_nether` / `data/world_the_end` は存在しない。バックアップ・復元手順でこれらを対象に含めない。
+- **ワールドは `$MC_DATA_DIR/world` の1ディレクトリで完結する** — Paper 26.2 では3ディメンションが `world/dimensions/minecraft/` 配下に統合されており、旧レイアウトの `world_nether` / `world_the_end` は存在しない。バックアップ・復元手順でこれらを対象に含めない。
 - **`ENABLE_AUTOPAUSE` は使わない（`false` 固定）** — mc-monitor の 60 秒ごとの status ping が「ノック」として数えられ `AUTOPAUSE_TIMEOUT_KN`（既定120秒）を毎回リセットするため発火せず、発火してもヒープは解放されない。代わりに mc-router の auto-scale を使っている。
 - **playit → mc-router → papermc と2段挟むと接続元IPが全プレイヤー同一になる** — IP BAN や Paper の `connection-throttle` は効かない。アクセス制御は `ENFORCE_WHITELIST` で行う。
 
