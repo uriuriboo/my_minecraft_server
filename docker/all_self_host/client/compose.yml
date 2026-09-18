@@ -1,0 +1,32 @@
+# 別PC（Grafana表示用マシン）で起動する compose。
+# Raspberry Pi 側は docker/all_self_host/server/compose.yml を先に起動しておくこと。
+#   起動: docker compose up -d   → http://localhost:3000
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "${GRAFANA_BIND_IP:-127.0.0.1}:3000:3000"
+    environment:
+      # provisioning/ 内の YAML から $MC_SERVER_HOST として参照される
+      MC_SERVER_HOST: ${MC_SERVER_HOST:?Pi の LAN/VPN アドレスを .env に設定してください}
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?admin パスワードを .env に設定してください}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  grafana-data:

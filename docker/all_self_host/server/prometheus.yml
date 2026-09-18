@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 60s
+
+scrape_configs:
+  - job_name: "mc-monitor"
+    static_configs:
+      - targets: ["monitor:8080"]
+
+  # node-exporter は network_mode: host のため、bridge 上の VictoriaMetrics からは
+  # localhost ではなくホストゲートウェイ経由で叩く（compose の extra_hosts で解決）
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["host.docker.internal:9100"]
+
+  - job_name: "mc-router"
+    static_configs:
+      - targets: ["mc-router:8081"]

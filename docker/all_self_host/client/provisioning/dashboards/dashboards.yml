@@ -1,0 +1,17 @@
+apiVersion: 1
+
+# ./dashboards に置いた JSON を自動読み込みする。
+# コミュニティ製をそのまま使う場合は Grafana UI の Import から ID を入れるだけでもよい:
+#   1860  Node Exporter Full            → データソース VictoriaMetrics
+#   13293 Docker / Container メトリクス  → 同上
+providers:
+  - name: local
+    orgId: 1
+    folder: "Minecraft"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
