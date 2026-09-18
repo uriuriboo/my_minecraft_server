@@ -44,9 +44,12 @@ docker compose pull papermc
 docker compose up -d papermc
 ```
 
-- `VERSION` を空文字にしている場合、再作成のたびに最新Paperビルドを自動解決
-- 特定バージョンに固定している場合は compose の `VERSION` を書き換えてから実行
-- **メジャーバージョンアップ前（例: 1.21→1.22）は必ずバックアップを取る**（ワールド互換性は前方のみ）
+- compose の `VERSION` は固定してある。上の2コマンドで更新されるのは itzg イメージと、同じ
+  Minecraft バージョン内の Paper ビルドだけで、バージョン自体は勝手に上がらない
+- バージョンを上げるときは compose の `VERSION` を書き換えてから実行する。空文字・未設定は
+  `LATEST` 扱いになり意図しない更新が起きるので使わない
+- **バージョンを上げる前は必ずバックアップを取る**（ワールド互換性は前方のみ。一度新しい
+  バージョンで起動するとデータが移行され、古いバージョンには戻せない）
 
 ## ワールドデータの配置場所
 
@@ -112,6 +115,9 @@ docker compose up -d papermc   # マウント元の変更は restart では反�
 各 compose の `backup` サービスで、`save-off` → `save-all` → tar → Cloudflare R2 へ転送 →
 `save-on` → 古い世代の削除、までを一括でやってくれる。
 
+対象は `world` だけではなく `/data`（= `MC_DATA_DIR`）全体で、`*.jar` / `cache` / `logs` /
+`*.tmp` だけが除外される。つまり `plugins` や `server.properties`、`config/` も一緒に入る。
+
 常駐させる必要はない。`profiles: ["backup"]` と `BACKUP_INTERVAL: "0"`（= 1回だけ実行して終了）を
 指定してあるので、`docker compose up -d` では起動せず、呼んだときだけ立ち上がって終了する。
 rcon で `papermc` に繋ぐ必要があるため、backup は papermc と同じ compose の中に置いてある。
@@ -141,9 +147,11 @@ docker compose run --rm backup
 
 ```bash
 crontab -e
-# 以下を追加（cron は PATH が短いので絶対パスで書く）
+# 以下を追加（cron は PATH が短いので絶対パスで書く。~ は展開されない）
 0 3 * * * cd /home/pi/papermc/docker/all_self_host/server && /usr/bin/docker compose run --rm backup
 ```
+
+`/home/pi` の部分は実際のユーザーのホーム（`echo $HOME`）に置き換える。
 
 Grafana Cloud 構成で運用している場合は `docker/cloud` に読み替える。
 
@@ -152,18 +160,25 @@ Grafana Cloud 構成で運用している場合は `docker/cloud` に読み替�
 
 ### 世代管理
 
-`RETENTION_DAYS`（既定7日）より古いバックアップが削除される。R2 側の保持期間を確実に管理したい場合は、
-スクリプト任せにせず R2 バケットのライフサイクルルールで設定するほうが堅い。
+`RETENTION_DAYS`（既定7日）より古いバックアップが **R2 側で** 削除される。rclone メソッドは
+転送が終わるとローカルの tar を消すので、`BACKUP_DIR` にファイルは溜まらない（一時置き場）。
+R2 側の保持期間を確実に管理したいなら、コンテナ任せにせず R2 バケットのライフサイクルルールで
+設定するほうが堅い。
 
 ### 復元手順
 
+アーカイブ名は `world-YYYYMMDD-HHMMSS.tgz`（`BACKUP_NAME` 既定の `world` ＋ 日時）。
 R2 から取得する場合は、まず一覧を見て対象を落とす。
 
 ```bash
-docker compose run --rm --entrypoint rclone backup lsl r2:$R2_BUCKET/$R2_PREFIX
-docker compose run --rm --entrypoint rclone backup \
-  copy r2:$R2_BUCKET/$R2_PREFIX/world_YYYY-MM-DD_HHMM.tgz /backups
+docker compose run --rm --no-deps --entrypoint rclone backup lsl r2:<バケット名>/<プレフィックス>
+docker compose run --rm --no-deps --entrypoint rclone backup \
+  copy r2:<バケット名>/<プレフィックス>/world-20260919-030000.tgz /backups
 ```
+
+`<バケット名>` / `<プレフィックス>` は `.env` の `R2_BUCKET` / `R2_PREFIX` の値をそのまま書く
+（`.env` はシェルには読み込まれないので `$R2_BUCKET` と書いても空になる）。`--no-deps` は
+`depends_on` で papermc が起動してしまうのを防ぐため。
 
 展開してサーバーを起動する。`$MC_DATA_DIR` / `$BACKUP_DIR` は `.env` で設定した実際のパスに読み替える
 （未設定ならそれぞれリポジトリルートの `data/` と `backups/`）。
@@ -171,9 +186,13 @@ docker compose run --rm --entrypoint rclone backup \
 ```bash
 docker compose stop papermc
 rm -rf "$MC_DATA_DIR/world"
-tar xzf "$BACKUP_DIR/world_YYYY-MM-DD_HHMM.tgz" -C "$MC_DATA_DIR"
+tar xzf "$BACKUP_DIR/world-20260919-030000.tgz" -C "$MC_DATA_DIR"
 docker compose start papermc
 ```
+
+アーカイブには `plugins` や `server.properties` も入っているため、この展開で **world 以外も
+アーカイブ時点の内容に上書きされる**。ワールドだけ戻したいときは
+`tar xzf ... -C "$MC_DATA_DIR" ./world` のように対象を絞る。
 
 ## プラグイン更新
 

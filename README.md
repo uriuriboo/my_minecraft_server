@@ -14,14 +14,21 @@
 | --- | --- |
 | itzg/minecraft-server | Paperサーバー本体。`TYPE`/`VERSION`等の環境変数でセットアップ |
 | playit-agent | ローカルの25565をplayit.gg経由で外部公開するトンネルクライアント |
-| mc-router | 25565の受け口。接続数メトリクスとレート制限を担当 |
-| itzg/mc-backup | 必要なときだけ起動し、ワールドをCloudflare R2へ送るバックアップジョブ |
+| mc-router | 25565の受け口。接続数メトリクスとレート制限に加え、scale to zero（後述）を担当 |
+| itzg/mc-backup | 必要なときだけ起動し、サーバーデータ一式（world含む）をCloudflare R2へ送るバックアップジョブ |
 | RCON（itzgイメージ標準搭載） | `rcon-cli`でコンテナ内からサーバーコマンドを実行する仕組み |
 
 監視は用途に応じて2パターンを用意している。詳細は [docker/README.md](docker/README.md)。
 
 - **すべてセルフホスト** — VictoriaMetrics + Loki を Pi に置き、Grafana だけ別PCから繋ぐ
 - **Grafana Cloud 併用** — Alloy で収集だけ Pi で行い、保存と表示は Grafana Cloud
+
+## 使うときだけ起動する（scale to zero）
+
+既定で有効。プレイヤーが接続すると mc-router が papermc コンテナを起動し、最後の1人が抜けて
+30分経つと停止する。そのため**誰も遊んでいない間は papermc が落ちているのが正常**で、
+久しぶりの1回目の接続は起動待ちでタイムアウトすることがある（切って繋ぎ直せば入れる）。
+常時起動に戻す方法と注意点は [docker/README.md](docker/README.md) を参照。
 
 ## ドキュメント
 

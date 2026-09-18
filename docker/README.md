@@ -114,8 +114,11 @@ docker compose run --rm backup
 
 `save-off` → `save-all` → tar → Cloudflare R2 へ転送 → `save-on` → 古い世代の削除、までを
 コンテナ側がやる。rcon で `papermc` に繋ぐので、backup は papermc と同じ compose に置く必要がある
-（別プロジェクトに切り出すとサービス名を解決できない）。cron 登録は
-[docs/operations.md](../docs/operations.md) を参照。
+（別プロジェクトに切り出すとサービス名を解決できない）。
+
+対象は `world` だけでなく `MC_DATA_DIR` 全体（`*.jar` / `cache` / `logs` / `*.tmp` は除外）。
+転送後にローカルの tar は消えるので `BACKUP_DIR` は一時置き場で、世代削除が効くのは R2 側だけ。
+cron 登録と復元手順は [docs/operations.md](../docs/operations.md) を参照。
 
 ## 使うときだけ起動する（scale to zero）
 

@@ -52,6 +52,10 @@ cp .env_sample .env
 - `RCON_PASSWORD` — 任意の文字列。バックアップコンテナが rcon で繋ぐのに使う
 - `R2_*` — Cloudflare R2 へバックアップを送る場合（後回しでも可）
 
+全セルフホスト構成（`all_self_host/server`）では `LAN_BIND_IP` も直す。サンプルには例として
+`192.168.1.50` が入っており、Pi の実アドレスと違うまま起動すると VictoriaMetrics / Loki の
+ポートバインドに失敗する。
+
 `.env` は `.gitignore` で除外済み。`docker compose` は **compose.yml と同じディレクトリの `.env`**
 しか自動で読まないため、必ずこの階層に置く。
 
@@ -88,6 +92,10 @@ playit コンテナは `network_mode: host` で動いているため、Pi自身�
 - 自分のスマホをモバイル通信に切り替え、発行アドレスに接続してテスト
 - 家庭内LAN特有の挙動と切り分けるため、Wi-Fi接続では確認しない
 
+接続後に誰もいない状態が30分続くと、mc-router の scale to zero で papermc が自動停止する。
+「勝手に落ちた」ように見えるが正常な動作で、次の接続で自動的に起動する（1回目は起動待ちで
+タイムアウトすることがある）。挙動と無効化の方法は [docker/README.md](../docker/README.md) を参照。
+
 ## 8. 友人への共有
 
 発行アドレスをそのままMinecraftの「サーバーを追加」画面に入力してもらう（ポート番号の指定不要）。
@@ -103,6 +111,6 @@ R2 への定期バックアップは [docs/operations.md](operations.md) の「�
 | --- | --- |
 | itzg/minecraft-server | Paperサーバー本体のDockerイメージ。TYPE/VERSION等の環境変数でPaper自動セットアップ |
 | playit-agent | ローカルの25565をplayit.gg経由で外部公開するトンネルクライアント。CGNAT配下でもポート開放不要 |
-| mc-router | 25565の受け口。playit からの接続を papermc に中継しつつ、接続数メトリクスとレート制限を提供 |
+| mc-router | 25565の受け口。playit からの接続を papermc に中継しつつ、接続数メトリクス・レート制限・scale to zero を提供 |
 | itzg/mc-backup | 呼んだときだけ起動し、save-off → tar → R2 転送 → save-on を行うバックアップジョブ |
 | RCON (itzgイメージ標準搭載) | コンテナ内から `rcon-cli` でサーバーコマンドを実行するための仕組み。外部公開は非推奨 |

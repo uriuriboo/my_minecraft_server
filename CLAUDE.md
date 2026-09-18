@@ -64,6 +64,9 @@ docker compose --env-file .env_sample -f <path> --profile backup config
 
 - **backup は papermc と同じ compose に置く** — rcon で `papermc` を名前解決する必要があるため、別プロジェクトに切り出すと動かない。
 - **`RCON_PASSWORD` は `.env` で固定が必須** — 未設定だと itzg イメージが起動ごとにランダム生成し、backup 側と一致しない。変更後は `docker compose up -d papermc` でコンテナ再作成（`restart` では反映されない）。
+- **対象は `world` だけではない** — `INCLUDES` 既定の `.` により `/data` 全体（`EXCLUDES` 既定の `*.jar` / `cache` / `logs` / `*.tmp` を除く）が入る。復元で展開すると `plugins` や `server.properties` もアーカイブ時点に戻る。「ワールドだけのバックアップ」と説明しない。
+- **ローカルに tar は残らない / 世代削除は R2 側だけ** — rclone メソッドは転送後にローカルの tar を消す。`RETENTION_DAYS`（`PRUNE_BACKUPS_DAYS`）が効くのは R2 上のオブジェクトのみ。`BACKUP_DIR` は一時置き場。
+- **アーカイブ名は `world-YYYYMMDD-HHMMSS.tgz`** — `BACKUP_NAME` 既定の `world` + `date +%Y%m%d-%H%M%S`。手順に別書式の例を書かない。
 
 手順の詳細は [docs/operations.md](docs/operations.md)。ワールドデータに触る変更を提案する際は必ずこの手順を踏襲すること。
 
@@ -80,7 +83,7 @@ mc-router の `AUTO_SCALE_UP` / `AUTO_SCALE_DOWN` が**既定で有効**。プ�
 
 - **`docker kill` や電源off直接切断は禁止** — ワールド破損リスクがあるため、必ず `docker compose stop`（SIGTERM経由）を使う。同じ理由で compose には `stop_grace_period: 1m` が要る（Docker 既定の10秒では保存が間に合わない）。
 - **プラグイン更新はサーバー停止中のみ** — 稼働中の `$MC_DATA_DIR/plugins` 書き換えはクラスロード不整合でクラッシュの可能性がある。
-- **メジャーバージョンアップ（例: 1.21→1.22）前は必ずバックアップ** — ワールドの互換性は前方のみ（新→旧には戻せない）。`VERSION` を省略すると `LATEST` 扱いになり意図せず上がるので固定する。
+- **バージョンを上げる前は必ずバックアップ** — ワールドの互換性は前方のみ（新→旧には戻せない）。`VERSION` は compose で固定してある（Paper は `1.21.x` 系から年ベースの `26.2` 形式に変わっている）。省略・空文字にすると `LATEST` 扱いになり意図せず上がるので使わない。
 - **SEEDは初回ワールド生成時のみ有効** — 既存の `world` がある状態でSEEDを変えても無視される。ワールドの継続性は「正常停止」「データディレクトリの保全」「定期バックアップ」の3点で守られる。ワールドを名前付きボリュームに移すような変更は既存ワールドを切り離すことになるので提案しない。
 - **ワールドの実体は `.env` の `MC_DATA_DIR`** — papermc と backup の両方がここを見る。未設定ならリポジトリルートの `data/`。リポジトリ外・できれば SSD への移設を推奨している（理由と手順は [docs/operations.md](docs/operations.md) の「ワールドデータの配置場所」）。
 - **RCONは平文プロトコルのため外部公開しない** — Discord Bot等から操作したい場合はVPN（WireGuard等）やCloudflare Tunnel経由のプライベートアクセスを前提に構成する。
@@ -97,4 +100,4 @@ mc-router の `AUTO_SCALE_UP` / `AUTO_SCALE_DOWN` が**既定で有効**。プ�
 
 ## Git管理状態の注意
 
-`docker/` はまだ未追跡（untracked）。それ以外（`CLAUDE.md` / `README.md` / `docs/` / `.gitignore` / `.editorconfig` / `.markdownlint.json` / `.vscode/tasks.json`）は追跡済み。ルートの `docker-compose.yml` と `backup.sh` は削除済み。`.gitignore` は `.env` / `data` / `backups` を除外している（いずれも階層を問わずマッチする）。playit.gg の `SECRET_KEY`、R2 のアクセスキー、Grafana Cloud の API キーなど実際のシークレットはコミットしないこと。
+`docker/` を含め、リポジトリ内のファイルはすべて追跡済み（`.gitignore` の除外対象を除く）。ルートの `docker-compose.yml` と `backup.sh` は削除済み。`.gitignore` は `.env` / `data` / `backups` を除外している（いずれも階層を問わずマッチする）。playit.gg の `SECRET_KEY`、R2 のアクセスキー、Grafana Cloud の API キーなど実際のシークレットはコミットしないこと。
