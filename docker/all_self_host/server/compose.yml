@@ -64,7 +64,7 @@ services:
     environment:
       EULA: "true"
       TYPE: "PAPER"                # 省略すると VANILLA になる
-      VERSION: "26.2"              # 省略すると LATEST になり、勝手にメジャー更新されうる
+      VERSION: "26.3"              # 省略すると LATEST になり、勝手にメジャー更新されうる
       MEMORY: "10G"                # 16GBモデル前提。OS/Docker/監視スタック用に残す
       USE_AIKAR_FLAGS: "true"
       TZ: "Asia/Tokyo"
