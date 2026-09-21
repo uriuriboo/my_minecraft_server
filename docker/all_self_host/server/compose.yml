@@ -23,6 +23,11 @@ services:
     volumes:
       # コンテナの起動・停止に Docker API を使うため必要
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # mc-router は非root(UID 65532)で動くため、group_add でホストの docker グループ(gid)に
+    # 入れないと docker.sock に permission denied で落ちる。gid はホストにより変わるので
+    # `getent group docker` で確認し、違えば .env の DOCKER_GID を上書きする。
+    group_add:
+      - "${DOCKER_GID:-984}"
     depends_on:
       - papermc
     restart: unless-stopped
