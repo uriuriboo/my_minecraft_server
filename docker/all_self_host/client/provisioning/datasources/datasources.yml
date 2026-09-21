@@ -1,0 +1,23 @@
+apiVersion: 1
+
+# $MC_SERVER_HOST は compose の environment から注入される（Pi の LAN/VPN アドレス）
+datasources:
+  - name: VictoriaMetrics
+    uid: victoriametrics
+    type: prometheus
+    access: proxy
+    url: http://$MC_SERVER_HOST:8428
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 60s
+      httpMethod: POST
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://$MC_SERVER_HOST:3100
+    editable: false
+    jsonData:
+      maxLines: 1000

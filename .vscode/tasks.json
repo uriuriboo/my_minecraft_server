@@ -1,17 +1,182 @@
 {
   "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "stack",
+      "type": "pickString",
+      "description": "どの compose を対象にするか",
+      "default": "docker/all_self_host/server",
+      "options": [
+        {
+          "label": "監視A / Pi 側 — 全セルフホスト",
+          "value": "docker/all_self_host/server"
+        },
+        {
+          "label": "監視A / 別PC側 — Grafana",
+          "value": "docker/all_self_host/client"
+        },
+        {
+          "label": "監視B / Pi 側 — Grafana Cloud",
+          "value": "docker/cloud"
+        }
+      ]
+    }
+  ],
   "tasks": [
     {
-      "label": "docker compose up",
+      "label": "compose: 構文チェック (config)",
+      "detail": "同じディレクトリの .env を読んで解決結果を確認する。既定のビルドタスク (Ctrl+Shift+B)",
+      "type": "shell",
+      "command": "docker compose --profile backup config",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "markdownlint: ドキュメント検査",
+      "detail": "*.md / docs / docker の Markdown を .markdownlint.json に従って検査",
+      "type": "shell",
+      "command": "npx -y markdownlint-cli2 \"*.md\" \"docs/**/*.md\" \"docker/**/*.md\"",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": {
+        "owner": "markdownlint",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+?):(\\d+)(?::(\\d+))?\\s+(MD\\d+/\\S+)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "code": 4,
+          "message": 5
+        }
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "compose: 起動 (up -d)",
       "type": "shell",
       "command": "docker compose up -d",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
       "problemMatcher": [],
       "group": "none"
     },
     {
-      "label": "docker compose down",
+      "label": "compose: 停止 (stop)",
+      "type": "shell",
+      "command": "docker compose stop",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: 再起動 (restart)",
+      "type": "shell",
+      "command": "docker compose restart",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: イメージ更新して再作成 (up -d --pull always)",
+      "type": "shell",
+      "command": "docker compose up -d --pull always",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "compose: コンテナ破棄 (down) ※通常は stop を使う",
       "type": "shell",
       "command": "docker compose down",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "logs: papermc",
+      "type": "shell",
+      "command": "docker compose logs -f papermc --tail 100",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "logs: playit",
+      "type": "shell",
+      "command": "docker compose logs -f playit --tail 100",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "backup: 今すぐ1回実行 (R2へ送信)",
+      "type": "shell",
+      "command": "docker compose run --rm backup",
+      "options": {
+        "cwd": "${workspaceFolder}/${input:stack}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": "none"
+    },
+    {
+      "label": "rcon: プレイヤー一覧 (list)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli list",
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "rcon: TPS確認 (tps)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli tps",
+      "problemMatcher": [],
+      "group": "none"
+    },
+    {
+      "label": "rcon: 手動セーブ (save-all)",
+      "type": "shell",
+      "command": "docker exec papermc rcon-cli save-all",
       "problemMatcher": [],
       "group": "none"
     }
