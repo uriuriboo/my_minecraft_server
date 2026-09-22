@@ -4,6 +4,8 @@ prometheus.scrape "local" {
     // node-exporter は network_mode: host のため host-gateway 経由で叩く
     {"__address__" = "host.docker.internal:9100"},
     {"__address__" = "mc-router:8081"},
+    // MODRINTH_PROJECTS で導入した prometheus-exporter プラグインが公開するTPS等のメトリクス
+    {"__address__" = "papermc:9940"},
   ]
   scrape_interval = "60s"
   forward_to = [prometheus.remote_write.grafana_cloud.receiver]

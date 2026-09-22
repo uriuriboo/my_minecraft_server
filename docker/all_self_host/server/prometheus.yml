@@ -15,3 +15,8 @@ scrape_configs:
   - job_name: "mc-router"
     static_configs:
       - targets: ["mc-router:8081"]
+
+  # spark(TPS等)ではなく MODRINTH_PROJECTS で導入した prometheus-exporter プラグインが公開するメトリクス
+  - job_name: "papermc"
+    static_configs:
+      - targets: ["papermc:9940"]
