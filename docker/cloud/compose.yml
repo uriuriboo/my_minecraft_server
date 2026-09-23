@@ -61,12 +61,15 @@ services:
       TYPE: "PAPER"                # 省略すると VANILLA になる
       VERSION: "26.2"              # 省略すると LATEST になり、勝手にメジャー更新されうる
       MEMORY: "10G"                # 16GBモデル前提。OS/Docker/Alloy用に残す
-      USE_MEOWICE_FLAGS: "true"   # Java17+向けの改良GCフラグ（旧USE_AIKAR_FLAGSから切替）
-      # USE_AIKAR_FLAGS: "true"   # 切替前の設定。悪化した場合はこちらに戻す（両者は併用不可）
+      # USE_MEOWICE_FLAGS: "true"  # aarch64でJVMがFatal Error(BarrierSetAssembler)でクラッシュしたため無効化
+      USE_AIKAR_FLAGS: "true"     # 切替前の設定に戻した（両者は併用不可）
       # JVM最適化系(USE_MEOWICE_FLAGS/GUI等)はJVMやプラグイン構成の変化で最適解が変わるため固定にしない。
       # docs/performance-monitoring.md のTPS/Tick Durationを見て定期的に見直す。
       GUI: "false"                 # コンテナ内でGUIウィンドウは不要
-      MODRINTH_PROJECTS: "spark,prometheus-exporter"
+      # MODRINTH_PROJECTS: "spark,prometheus-exporter"
+      # spark: Modrinthでpaper/bukkit向けビルドの提供が終了し導入不可。
+      # prometheus-exporter: Modrinthのビルドが26.1.2まででVERSION 26.2以降非対応。
+      # 起動時にプラグイン解決が失敗し再起動ループになっていたため無効化した。
       TZ: "Asia/Tokyo"
       ONLINE_MODE: "true"
       WHITELIST: ""                # 例: "user1,user2"

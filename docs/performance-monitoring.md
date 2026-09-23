@@ -3,6 +3,17 @@
 サーバーの重さ・ラグを調査するための2つの仕組みを追加した。既存の死活監視（[docker/README.md](../docker/README.md)
 の mc-monitor）とは別物で、「落ちているか」ではなく「重くなっていないか・なぜ重いか」を見るための追加。
 
+## ⚠️ 現在 spark / prometheus-exporter は無効化中
+
+導入直後から papermc が起動できなくなっていたため、両 compose.yml の `MODRINTH_PROJECTS` をコメントアウトして無効化した。
+
+- **spark**: Modrinth上でPaper/Bukkit向けビルドの提供が終了している（fabric/forge/neoforge/quiltのみ）。バージョンを合わせても解決しない。
+- **prometheus-exporter**: Modrinthのビルドが `26.1.2` までしか対応しておらず、`VERSION: "26.2"` 以降では入手できない。
+
+この結果、`papermc-performance.json` ダッシュボード（TPS / Tick Duration / Loaded Chunks / Entities）は
+データソースが無いため **すべて No Data 表示になる**。ダッシュボードのJSON自体は壊れていないので、
+代替の入手方法が見つかるか、各プラグインが対応バージョンを出すまではこの状態のまま。
+
 ## spark（その場でのプロファイリング）
 
 `MODRINTH_PROJECTS` にプラグイン `spark` を追加してある（`docker/cloud/compose.yml` /
