@@ -36,7 +36,7 @@ services:
     mem_limit: 64m
 
   playit:
-    image: ghcr.io/playit-cloud/playit-agent:0.17
+    image: ghcr.io/playit-cloud/playit-agent:1.0.10
     container_name: playit
     # playit.gg の管理画面でトンネルの転送先を 127.0.0.1:25565 に設定する
     network_mode: host
