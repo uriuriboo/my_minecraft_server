@@ -22,13 +22,35 @@ prometheus.remote_write "grafana_cloud" {
 }
 
 loki.source.docker "container_logs" {
-  host       = "unix:///var/run/docker.sock"
-  targets    = discovery.docker.containers.targets
-  forward_to = [loki.write.grafana_cloud.receiver]
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.container_logs.rules
+  forward_to    = [loki.write.grafana_cloud.receiver]
 }
 
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
+}
+
+// promtail-config.yml (docker/all_self_host/server) と同じラベル付けにする。
+// これが無いと container ラベルが付かず、ダッシュボードの {container="papermc"} 等が
+// すべて No Data になる。
+discovery.relabel "container_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
 }
 
 loki.write "grafana_cloud" {
