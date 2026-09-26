@@ -1,0 +1,70 @@
+{
+  "title": "papermc-performance",
+  "uid": "papermc-performance",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "TPS",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "REPLACE_WITH_YOUR_PROMETHEUS_DATASOURCE_NAME" },
+      "targets": [
+        { "expr": "mc_tps", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "max": 20,
+          "min": 0,
+          "thresholds": {
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 15, "color": "yellow" },
+              { "value": 10, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Tick Duration (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "REPLACE_WITH_YOUR_PROMETHEUS_DATASOURCE_NAME" },
+      "targets": [
+        { "expr": "mc_tick_duration_average / 1e6", "refId": "A", "legendFormat": "average" },
+        { "expr": "mc_tick_duration_median / 1e6", "refId": "B", "legendFormat": "median" },
+        { "expr": "mc_tick_duration_max / 1e6", "refId": "C", "legendFormat": "max" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Loaded Chunks (by world)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "REPLACE_WITH_YOUR_PROMETHEUS_DATASOURCE_NAME" },
+      "targets": [
+        { "expr": "mc_loaded_chunks_total", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Entities (by world)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "REPLACE_WITH_YOUR_PROMETHEUS_DATASOURCE_NAME" },
+      "targets": [
+        { "expr": "mc_entities_total", "refId": "A" }
+      ]
+    }
+  ]
+}
