@@ -23,6 +23,11 @@ services:
     volumes:
       # コンテナの起動・停止に Docker API を使うため必要
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    # mc-router は非root(UID 65532)で動くため、group_add でホストの docker グループ(gid)に
+    # 入れないと docker.sock に permission denied で落ちる。gid はホストにより変わるので
+    # `getent group docker` で確認し、違えば .env の DOCKER_GID を上書きする。
+    group_add:
+      - "${DOCKER_GID:-984}"
     depends_on:
       - papermc
     restart: unless-stopped
@@ -36,7 +41,7 @@ services:
     mem_limit: 64m
 
   playit:
-    image: ghcr.io/playit-cloud/playit-agent:0.17
+    image: ghcr.io/playit-cloud/playit-agent:1.0.10
     container_name: playit
     # playit.gg の管理画面でトンネルの転送先を 127.0.0.1:25565 に設定する
     network_mode: host
@@ -59,9 +64,17 @@ services:
     environment:
       EULA: "true"
       TYPE: "PAPER"                # 省略すると VANILLA になる
-      VERSION: "26.2"              # 省略すると LATEST になり、勝手にメジャー更新されうる
+      VERSION: "26.3"              # 省略すると LATEST になり、勝手にメジャー更新されうる
       MEMORY: "10G"                # 16GBモデル前提。OS/Docker/Alloy用に残す
-      USE_AIKAR_FLAGS: "true"
+      # USE_MEOWICE_FLAGS: "true"  # aarch64でJVMがFatal Error(BarrierSetAssembler)でクラッシュしたため無効化
+      USE_AIKAR_FLAGS: "true"     # 切替前の設定に戻した（両者は併用不可）
+      # JVM最適化系(USE_MEOWICE_FLAGS/GUI等)はJVMやプラグイン構成の変化で最適解が変わるため固定にしない。
+      # docs/performance-monitoring.md のTPS/Tick Durationを見て定期的に見直す。
+      GUI: "false"                 # コンテナ内でGUIウィンドウは不要
+      # MODRINTH_PROJECTS: "spark,prometheus-exporter"
+      # spark: Modrinthでpaper/bukkit向けビルドの提供が終了し導入不可。
+      # prometheus-exporter: Modrinthのビルドが26.1.2まででVERSION 26.3非対応。
+      # 起動時にプラグイン解決が失敗し再起動ループになっていたため無効化した。
       TZ: "Asia/Tokyo"
       ONLINE_MODE: "true"
       WHITELIST: ""                # 例: "user1,user2"
