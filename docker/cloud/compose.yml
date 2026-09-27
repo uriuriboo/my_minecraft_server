@@ -194,6 +194,15 @@ services:
       GRAFANA_CLOUD_API_KEY: "${GRAFANA_CLOUD_API_KEY}"
       GRAFANA_CLOUD_LOKI_URL: "${GRAFANA_CLOUD_LOKI_URL}"
       GRAFANA_CLOUD_LOKI_USER: "${GRAFANA_CLOUD_LOKI_USER}"
+      GRAFANA_CLOUD_PROFILES_URL: "${GRAFANA_CLOUD_PROFILES_URL}"
+      GRAFANA_CLOUD_PROFILES_USER: "${GRAFANA_CLOUD_PROFILES_USER}"
+    # papermc の JVM を async-profiler で継続的プロファイリング(Pyroscope)するために
+    # papermc とPIDネームスペースを共有する。discovery.process はこの見え方に依存する。
+    # host 全体を共有する pid: host にはしない(papermc 以外のプロセスを見せる必要が無いため)。
+    pid: "service:papermc"
+    # async-profiler は ptrace でJVMにアタッチするため必要。
+    cap_add:
+      - SYS_PTRACE
     restart: unless-stopped
     mem_limit: 128m
 

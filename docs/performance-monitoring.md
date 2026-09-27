@@ -1,6 +1,6 @@
-# パフォーマンス監視（spark / TPSメトリクス）
+# パフォーマンス監視（spark / TPSメトリクス / JVMプロファイル）
 
-サーバーの重さ・ラグを調査するための2つの仕組みを追加した。既存の死活監視（[docker/README.md](../docker/README.md)
+サーバーの重さ・ラグを調査するための仕組みを追加した。既存の死活監視（[docker/README.md](../docker/README.md)
 の mc-monitor）とは別物で、「落ちているか」ではなく「重くなっていないか・なぜ重いか」を見るための追加。
 
 ## ⚠️ 現在 spark / prometheus-exporter は無効化中
@@ -74,6 +74,23 @@ docker exec papermc curl -s localhost:9940/metrics | grep mc_
 
 `docker/cloud` 構成には自前のGrafanaが無く、Grafana Cloud上に直接ダッシュボードを作る運用のため、
 同じ内容を見たい場合は上記JSONをGrafana CloudのUI（Dashboards → Import → JSON貼り付け）で取り込む。
+
+## JVM継続的プロファイリング（Pyroscope、`docker/cloud` のみ）
+
+`docker/cloud/config.alloy` に Alloy の `pyroscope.java` コンポーネントを追加し、papermc の JVM を
+async-profiler で継続的にプロファイリングして Grafana Cloud Profiles (Pyroscope) へ送っている。
+spark（手動の単発プロファイル）・prometheus-exporter（TPS等のメトリクス、現在無効化中）とは別軸で、
+「どのメソッドがCPUを使っているか」をフレームグラフで継続的に見られる。
+
+- **`docker/all_self_host` 側には未導入** — セルフホストのVictoriaMetrics/Loki構成にはPyroscope相当が無いため。
+- alloy コンテナに `pid: "service:papermc"` と `cap_add: [SYS_PTRACE]` を追加している。
+  discovery.process が papermc コンテナ内のプロセス（PID 1 = java想定）を見えるようにするための設定で、
+  host全体のPIDを見る `pid: host` にはしていない。
+- `.env` に `GRAFANA_CLOUD_PROFILES_URL` / `GRAFANA_CLOUD_PROFILES_USER` の追加が必要
+  （値は Grafana Cloud の Profiles スタック詳細ページ）。既存の `GRAFANA_CLOUD_API_KEY` を再利用する。
+- 反映後は Pi 上で `docker compose up -d` してから、Grafana Cloud の Profiles / Explore で
+  `service_name="papermc"` のプロファイルが届いているか確認する。届かない場合は
+  `docker compose logs alloy` で `pyroscope.java` 周りのエラー（ptrace権限やPIDネームスペース関連）を確認する。
 
 ## JVM/起動オプションの見直し
 
