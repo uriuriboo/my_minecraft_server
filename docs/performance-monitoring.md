@@ -96,6 +96,25 @@ spark（手動の単発プロファイル）・prometheus-exporter（TPS等の�
 - 反映後は Pi 上で `docker compose up -d` してから、プロファイルが届いているか確認する。届かない場合は
   `docker compose logs alloy` で `pyroscope.java` 周りのエラー（ptrace権限やPIDネームスペース関連）を確認する。
 
+### Grafanaダッシュボード（papermc-profiles.json）
+
+`docker/all_self_host/client/dashboards/papermc-profiles.json` を追加した。Explore Profilesの時系列グラフに
+出てくる代表的な3値（CPU使用率・メモリ確保レート・メモリ確保個数）を並べただけの構成で、Flame Graphは含まない
+（Flame Graphは特定時点の詳細調査用のため、常時表示する定点観測ダッシュボードには向かない）。
+
+- **`docker/all_self_host`**: `papermc-performance.json` と同様に自動でGrafanaの「Minecraft」フォルダに表示される。
+  データソースは provisioning で追加した `Pyroscope`（uid: `pyroscope`）を固定で参照している。
+- **`docker/cloud`**: `dashboards/papermc-performance.json` 等と同じ運用。`docker/cloud/dashboards/papermc-profiles.json`
+  はデータソースのuidが `REPLACE_WITH_YOUR_PYROSCOPE_DATASOURCE_NAME` のプレースホルダのままコミットしてある
+  （Grafana CloudのPyroscopeデータソースのuidは環境ごとに異なり、リポジトリに実値を書けないため）。
+  Pi上で実際のuid（Grafana Cloud → Connections → Data sources → Pyroscope詳細ページで確認）に置き換えた
+  `papermc-profiles.local.json` を作ってGrafana CloudのUI（Dashboards → Import → JSON貼り付け）で取り込む。
+  `*.local.json` は `.gitignore` 対象なのでコミットされない。
+- `profileTypeId` はPyroscope Javaの一般的な命名（`process_cpu:cpu:nanoseconds:cpu:nanoseconds` /
+  `memory:alloc_in_new_tlab_bytes:bytes:space:bytes` / `memory:alloc_in_new_tlab_objects:count:space:bytes`）で
+  組んでいるが、実際にどの値がドロップダウンに出るかはPyroscopeのバージョンで変わりうる。反映後、パネルが
+  「No data」になる場合はパネル編集画面の Profile type ドロップダウンで実際のIDに直す。
+
 ## JVM/起動オプションの見直し
 
 papermc の environment に以下も追加・変更した（両 compose.yml）。
