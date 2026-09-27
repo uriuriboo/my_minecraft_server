@@ -1,40 +1,16 @@
-prometheus.scrape "local" {
-  targets = [
-    {"__address__" = "monitor:8080"},
-    // node-exporter は network_mode: host のため host-gateway 経由で叩く
-    {"__address__" = "host.docker.internal:9100"},
-    {"__address__" = "mc-router:8081"},
-    // MODRINTH_PROJECTS で導入した prometheus-exporter プラグインが公開するTPS等のメトリクス
-    {"__address__" = "papermc:9940"},
-  ]
-  scrape_interval = "60s"
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-prometheus.remote_write "grafana_cloud" {
-  endpoint {
-    url = env("GRAFANA_CLOUD_PROM_URL")
-    basic_auth {
-      username = env("GRAFANA_CLOUD_PROM_USER")
-      password = env("GRAFANA_CLOUD_API_KEY")
-    }
-  }
-}
-
 loki.source.docker "container_logs" {
   host          = "unix:///var/run/docker.sock"
   targets       = discovery.docker.containers.targets
   relabel_rules = discovery.relabel.container_logs.rules
-  forward_to    = [loki.write.grafana_cloud.receiver]
+  forward_to    = [loki.write.local.receiver]
 }
 
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-// promtail-config.yml (docker/all_self_host/server) と同じラベル付けにする。
-// これが無いと container ラベルが付かず、ダッシュボードの {container="papermc"} 等が
-// すべて No Data になる。
+// promtail-config.yml と同じラベル付け。これが無いと container ラベルが付かず、
+// ダッシュボードの {container="papermc"} 等がすべて No Data になる。
 discovery.relabel "container_logs" {
   targets = discovery.docker.containers.targets
 
@@ -53,13 +29,9 @@ discovery.relabel "container_logs" {
   }
 }
 
-loki.write "grafana_cloud" {
+loki.write "local" {
   endpoint {
-    url = env("GRAFANA_CLOUD_LOKI_URL")
-    basic_auth {
-      username = env("GRAFANA_CLOUD_LOKI_USER")
-      password = env("GRAFANA_CLOUD_API_KEY")
-    }
+    url = "http://loki:3100/loki/api/v1/push"
   }
 }
 
@@ -86,19 +58,15 @@ discovery.relabel "papermc_jvm" {
 
 pyroscope.java "papermc" {
   targets    = discovery.relabel.papermc_jvm.output
-  forward_to = [pyroscope.write.grafana_cloud.receiver]
+  forward_to = [pyroscope.write.local.receiver]
 
   profiling_config {
     interval = "60s"
   }
 }
 
-pyroscope.write "grafana_cloud" {
+pyroscope.write "local" {
   endpoint {
-    url = env("GRAFANA_CLOUD_PROFILES_URL")
-    basic_auth {
-      username = env("GRAFANA_CLOUD_PROFILES_USER")
-      password = env("GRAFANA_CLOUD_API_KEY")
-    }
+    url = "http://pyroscope:4040"
   }
 }

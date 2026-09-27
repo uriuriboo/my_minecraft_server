@@ -24,11 +24,11 @@ docker compose ls
 docker ps --format '{{.Names}}'
 ```
 
-- `victoriametrics` / `loki` / `promtail` がいる → `all_self_host/server`
-- `alloy` がいる → `cloud`
+- `victoriametrics` / `loki` がいる → `all_self_host/server`（`alloy` も同居するが、ログ収集用でこちらにもいる）
+- `alloy` はいるが `victoriametrics` / `loki` がいない → `cloud`
 - `grafana` だけ → `all_self_host/client`
 
-Pi 上で `victoriametrics` と `alloy` が同時にいる、または両方のディレクトリに `.env` がある場合は排他違反なのでその場で報告する。
+両方のディレクトリ（`all_self_host/server` と `cloud`）に `.env` がある場合は排他違反なのでその場で報告する。
 
 ### 同じ確認でまとめて聞くこと
 

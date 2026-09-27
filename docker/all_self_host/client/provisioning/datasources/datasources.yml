@@ -21,3 +21,10 @@ datasources:
     editable: false
     jsonData:
       maxLines: 1000
+
+  - name: Pyroscope
+    uid: pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://$MC_SERVER_HOST:4040
+    editable: false
