@@ -203,6 +203,16 @@ services:
     restart: unless-stopped
     mem_limit: 256m
 
+  pyroscope:
+    image: grafana/pyroscope:latest
+    volumes:
+      - pyroscope-data:/data
+    # 別PCのGrafanaから参照する。VictoriaMetrics/Lokiと同様に認証が無いので LAN_BIND_IP で絞る
+    ports:
+      - "${LAN_BIND_IP:-127.0.0.1}:4040:4040"
+    restart: unless-stopped
+    mem_limit: 256m
+
   alloy:
     image: grafana/alloy:latest
     volumes:
@@ -216,10 +226,18 @@ services:
       - --storage.path=/var/lib/alloy/data
     depends_on:
       - loki
+      - pyroscope
+    # papermc の JVM を async-profiler で継続的プロファイリング(Pyroscope)するために
+    # papermc とPIDネームスペースを共有する。discovery.process はこの見え方に依存する。
+    pid: "service:papermc"
+    # async-profiler は ptrace でJVMにアタッチするため必要。
+    cap_add:
+      - SYS_PTRACE
     restart: unless-stopped
     mem_limit: 128m
 
 volumes:
   vm-data:
   loki-data:
+  pyroscope-data:
   alloy-data:

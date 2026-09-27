@@ -34,3 +34,39 @@ loki.write "local" {
     url = "http://loki:3100/loki/api/v1/push"
   }
 }
+
+// papermc の JVM を継続的プロファイリング(Pyroscope)する。
+// alloy コンテナは compose.yml で pid: "service:papermc" にしてあるため、
+// discovery.process には papermc コンテナ内のプロセスだけが見える(PID 1 = java想定)。
+discovery.process "papermc_jvm" {
+  refresh_interval = "60s"
+}
+
+discovery.relabel "papermc_jvm" {
+  targets = discovery.process.papermc_jvm.targets
+
+  rule {
+    source_labels = ["__meta_process_exe"]
+    regex         = ".*/java$"
+    action        = "keep"
+  }
+  rule {
+    target_label = "service_name"
+    replacement  = "papermc"
+  }
+}
+
+pyroscope.java "papermc" {
+  targets    = discovery.relabel.papermc_jvm.output
+  forward_to = [pyroscope.write.local.receiver]
+
+  profiling_config {
+    interval = "60s"
+  }
+}
+
+pyroscope.write "local" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+}
