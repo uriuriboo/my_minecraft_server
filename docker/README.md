@@ -14,7 +14,7 @@ docker/
 | | パターンA (all_self_host) | パターンB (cloud) |
 | --- | --- | --- |
 | メトリクス保存 | VictoriaMetrics (Pi) | Grafana Cloud |
-| ログ保存 | Loki + Promtail (Pi) | Grafana Cloud (Alloy 経由) |
+| ログ保存 | Loki + Alloy (Pi) | Grafana Cloud (Alloy 経由) |
 | ダッシュボード | 別PCの Grafana | Grafana Cloud |
 | Pi のメモリ追加消費 | 約 600MB | 約 128MB |
 | 外部サービス依存 | なし | あり（無料枠あり） |
